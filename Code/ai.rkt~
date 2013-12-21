@@ -1,0 +1,33 @@
+#lang racket
+(require "utilities.scm")
+(require "proj-v2-gen-moves.scm")                                                          
+                                                                   
+ 
+ (define (~board-value B) 
+   (define ~sd-value (lc (if (= (vector-ref B 25) 15) 1000 
+                               (if (= (is-A B x) 1) (if (and (< 0 x) (< x 7)) 1
+                                                        (if (and (< 0 x) (< x 7)) 1.5 2))
+                                   (if (and (< 0 x) (< x 7)) (* 2 (is-A B x))
+                                      (if (and (< 6 x) (< x 19)) (* 2.5  (is-A B x)) (* 3 (is-A B x))))))
+                                
+                               
+                                  : x <- '(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24) 
+                                                     * (and (not (empty? B x)) (equal? (car (vector-ref B x)) 'R))))
+ 
+ (define ~check-bar (lc 1 : x <- '(1 2 3 4 5 6) * (and (not (empty? B x)) (equal? (car (vector-ref B x)) 'B) (< 1 (is-B B x)))))
+ (define ~bar-value (let ((m (if (null? ~check-bar) 0 (foldr (λ(x y) (+ x y)) 0 ~check-bar)))
+                          (n (if (bar-A? B) (bar-A? B) 0))) 
+                      (if (<= m 3) (- 0 (* m n))
+                          (- 0 (* n (* 2 m))))))
+ (define ~check-home (lc 1 : x <- '(19 20 21 22 23 24) * (and (not (empty? B x)) (equal? (car (vector-ref B x)) 'B) (< 1 (is-B B x)))))
+ (define ~home-value  (let ((m (if (null? ~check-home) 0 (foldr (λ(x y) (+ x y)) 0 ~check-home)))
+                          (n (if (bar-B? B) (bar-B? B) 0))) 
+                      (if (<= m 3) (+ 0 (* m n))
+                          (+ 0 (* n (* 2 m))))))
+   (let ((z (foldr (λ(x y) (+ x y)) 0 ~sd-value))
+                            (n (if (open-A? B) 10 0))
+                            (m (vector-ref B 25)))
+                        (+ z n m ~bar-value ~home-value)))
+                        
+ 
+ 

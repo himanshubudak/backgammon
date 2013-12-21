@@ -1,0 +1,251 @@
+#lang racket/gui
+(require racket/include)
+(require "utilities.scm")
+(require "aipart.scm")
+(require "proj-v2-gen-moves.scm")
+(require "graphics-defs.scm")
+
+
+(define Board (make-vector 30 #f))
+(reset-B Board)
+
+(define ~AI #f)
+
+
+;(define ~Roll 1 ) ;;; consists access to roll button and roll display  ;CONSTRUCTION
+(define ~Die-Pair #f)
+
+(define ~Whose-Move #f)   ;;can take 'R (red is comp)   'B  
+
+
+(define ~Pending '())  ;;die values still left to make move by user
+
+(define ~Curr-Sel #f)  ;;a index  indicating from where move is to be made by user
+(define ~Highlight '()) ;;list of indices corr to valid move positions from Curr-sel
+
+(define ~R-Active? #f)  ;;indicates whehwer roll button is active 
+(define ~B-Active? #f)  ;;same for playing board recieving clicks
+
+(define ~Board-Elements #())  ;;;a non-changeable vector throughout containing 27 board element objects having complete graphic and click handling properties
+                                ;;CONSTRUCTION
+
+
+
+
+
+
+(define (Reset-Board)
+  (reset-B Board)
+  (map (λ(e) (send e update1)) ~Board-Elements)
+  )
+(define (Set-Board target)
+  (set-B Board target)
+  (map (λ(e) (send e update1)) ~Board-Elements)
+  )
+(define (Reset-Roll)
+  (set! ~Die-Pair #f)
+  (send ~Roll update) ;;update the display 
+  )
+
+
+
+
+
+
+;;;some extra graphic classes required 
+(define (B-inact) (set! ~B-Active? #f))
+(define (B-act) (set! ~B-Active? #t))
+(define stop% 
+  (class self-placeable-canvas%
+    (init-field [index 0])
+    (define/override (on-event e)
+       (if (equal? (send e get-event-type) 'left-down) (if (not ~B-Active?) (void)
+                                                            (begin (B-inact) (if (bar-B? Board) (B-act)
+                                                                (begin (map (λ(s)(send (Ele s) update1)) ~Highlight)   ;;;previous changes reset
+                                                                       (if (~Curr-Sel) (send (Ele ~Curr-Sel) update1) (void))
+                                                                       (update1)
+                                                                       (set! ~Highlight '())
+                                                                       (set! ~Curr-Sel index)
+                                                                       (if (not(is-B Board index)) (B-act)
+                                                                           (update3)
+                                                                           (set! ~Highlight (poss-move-user Board i ~Pending))
+                                                                           (map (λ(s)(send (Ele s) update2)) ~Highlight))))))
+           (if (equal? (send e get-event-type) 'right-down)
+               (if (not ~B-Active?) (void)
+                   (begin (B-inact) (if (not(member index ~Highlight)) (B-act)
+                       (begin 
+                              (let([diff (- ~Curr-Sel index )]
+                                   [bdash (copy Board)])
+                                (if (= ~Curr-Sel 26) ;;;i.e move from bar
+                                    (begin (set! diff (- 25 index)) (from-bar-B bdash diff))
+                                    (move-B bdash ~Curr-Sel diff)) ;;normal move 
+                                ;(set! ~Curr-Sel #f)
+                                ;(set! ~Highlight '())
+                                (Set-Board bdash)  ;;removes all unnecessary highlights if any ,so no need to seperately remove them
+                                (set! ~Pending (remove diff ~Pending))
+                                (if (game-over? Board)   (Is-Game-Over)
+                                    (if (null? ~Pending) (Is-Game-Over)
+                                        (Is-Possible)))))))))
+               (void))) 
+    (define/public (update1) (reload (Get-Stop-Bmp (vector-ref Board index) ~S-type1)))
+    (define/public (update2) (reload (Get-Stop-Bmp (vector-ref Board index) ~S-type2)))      ;;;CONSTRUCTION     get-stop-bmp
+    (define/public (update3) (reload (Get-Stop-Bmp (vector-ref Board index) ~S-type3)))
+    (define (Get-Stop-Bmp data image-list) (if (not data);;;i.e it is #f
+                                               (vector-ref image-list 0)
+                                               (if (eq? (car data) 'R) (vector-ref image-list (cdr data))
+                                                        (vector-ref image-list (+ 5 cdr data)))))
+                                               
+                                               
+    (define/public (reload bmp) (send (send this get-dc) draw-bitmap bmp 0 0)) 
+    (super-new)))
+
+(define home-B% 
+  (class self-placeable-canvas%
+    (init-field [index 0])
+    (define/override (on-event e)
+      (if (equal? (send e get-event-type) 'right-down)
+          (if (not ~B-Active?) (void)
+              (begin (B-inact)(if (not (is-ok?)) (B-act)
+                  (begin (set! ~B-Active? #f)
+                         (let([diff (- index (vmax (list->vector ~Highlights)))]
+                              [bdash (copy Board)])
+                           (move-B bdash ~Curr-Sel diff)
+                           ;(set! ~Curr-Sel #f)
+                           ;(set! ~Highlight '())
+                           (Set-Board bdash)
+                           (set! ~Pending (remove diff ~Pending))
+                           (if (game-over? Board)   (Is-Game-Over)
+                               (if (null? ~Pending) (Is-Game-Over)
+                                   (Is-Possible))))))))
+          (void)))
+    (define (is-ok?) (findf (λ(t) (< t 0)) ~Highlight))
+    (define/public (update1) (reload (Get-Home-Bmp (vector-ref Board index) ~HB-type1)))
+    (define/public (update2) (reload (Get-Home-Bmp (vector-ref Board index) ~HB-type2)))
+   ; (define/public (update3) (reload (Get-Home-Bmp-3 (vector-ref Board index))))   ;;cant be "from" candidate
+    (define (Get-Home-Bmp data image-list) (vector-ref image-list data))
+    (define/public (reload bmp) (send (send this get-dc) draw-bitmap bmp 0 0)) 
+    (super-new)))
+(define home-A% 
+  (class self-placeable-canvas%
+    (init-field [index 0])
+    (define/public (update1) (reload (Get-Home-Bmp (vector-ref Board index) ~HA-type1)))
+    (define/public (reload bmp) (send (send this get-dc) draw-bitmap bmp 0 0))
+    (define (Get-Home-Bmp data image-list) (vector-ref image-list data))
+    (super-new)))
+
+
+(define bar% 
+  (class self-placeable-canvas%
+    (init-field [index 0])
+    (define/override (on-event e)
+      (if (equal? (send e get-event-type) 'left-down) (if (not ~B-Active?) (void)
+                                                          (if (not(bar-B? Board)) (B-act)
+                                                              (begin (map (λ(s)(send (Ele s) update1)) ~Highlight)
+                                                                     (if (~Curr-Sel) (send (Ele ~Curr-Sel) update1) (void))
+                                                                     (update1)
+                                                                     (set! ~Highlight '())
+                                                                     (set! ~Curr-Sel index)
+                                                                     (if (not(is-B Board index)) (B-act)
+                                                                         (update3)
+                                                                         (set! ~Highlight (poss-move-user Board i ~Pending))
+                                                                         (map (λ(s)(send (Ele s) update2)) ~Highlight)))))
+          
+          (void)))
+    (define/public (update1) (reload (Get-Bar-Bmp (vector-ref Board index) ~B-type1)))
+    ;(define/public (update2) (reload (Get-Bar-Bmp-2 (vector-ref Board index))))    ;;cant be "to" candidate
+    (define/public (update3) (reload (Get-Bar-Bmp (vector-ref Board index) ~B-type3)))
+    (define (Get-Bar-Bmp data 2d-img-vec) (2d-vector-ref 2d-img-vec (cdar data) (cddr data)))
+    (define/public (reload bmp) (send (send this get-dc) draw-bitmap bmp 0 0)) 
+    (super-new)))
+
+
+(define (Is-Possible) ;;;gets pending ,
+  (if (can-user-move Board) (B-act)
+      (begin (send msg show "no moves possible") ;;msg display shows it for 2 secs and then flushes and  moves on 
+             (Is-Game-Over))))
+
+(define (Is-Game-Over)
+  (if (game-over? Board)
+      (send ~Game-End act (if (= (seev Board 0) 15)     ;;;CONSTRUCTION   ~Game-End frame
+                                               'B
+                                               'R))
+      (begin(Reset-Roll)
+            (set! Pending '())
+            (if (equal? ~Whose-Move 'B)
+                (set!  ~Whose-Move 'R )
+                (set!  ~Whose-Move 'B )))))
+
+(define (Continue)
+  (if (equal? ~Whose-Move 'R) ;;ie of Comp's
+      (begin (send ~Roll roll) ;;sets the   ~Die-Pair and Roll-Display              ;;CONSTRUCTION
+             (send ~AI give-best-move))
+      (begin (set! ~R-Active #t)
+             (B-inact)
+      ;;waits for click on Roll (with button active and roll inactive
+             )))
+
+(define AI%
+  (class object%
+    (init func)
+    (define give-move func)
+    (super-new)
+    (define/public (give-best-move)
+      (let ([ans (give-move Board ~Die-Pair)])
+        (Set-Board ans)
+        (Is-Game-Over)))))
+
+(define ~optim-AI
+  (new AI% [func optim-AI-move]))
+(define ~dumb-AI
+  (new AI% [func dumb-AI-move]))
+
+
+(define Roll-Button%
+  (class self-placeable-canvas%
+    (super-new)
+    (define/public (roll) 
+      (let([ans (cons (+ 1 (random 6)) (+ 1 (random 6)))])
+        (set! ~Die-Pair ans)
+        (send ~Roll-Display update)
+        ))
+    (define/override (on-event e)
+      (if (equal? (send e get-event-type) 'left-down)
+          (if (not ~R-Active) (void)
+              (begin (set! ~R-Active #f)
+                     (roll)
+                     (set! ~Pending (let ([a (car ~Die-Roll)]
+                                          [b (cdr ~Die-Roll)])
+                                      (if (= a b) (list a a a a) (list a b))))
+                     (Is-Possible)))
+          (void)))
+    (define/public (reset)
+      (set! ~Die-Pair #f)
+      (send ~Roll-Display update))))
+  
+
+(define Roll-Display%
+   (class self-placeable-canvas%
+     (super-new)
+     (define/public (update) (reload (get-dice-bitmap ~Die-Pair)))
+     (define (get-dice-bitmap d) (if (not d) ~D00 
+                                     (2d-vector-ref ~Dice-Table (car d) (cdr d))))
+     (define/public (reload bmp) (send (send this get-dc) draw-bitmap bmp 0 0))))
+
+
+
+
+;;;;creating ~Game frame , ~Panel1 ,and other objects in ~Panel1 ,,,AND THEIR LISTS  followed by required bmps
+
+
+
+
+
+
+      
+      
+
+
+   
+
+
+

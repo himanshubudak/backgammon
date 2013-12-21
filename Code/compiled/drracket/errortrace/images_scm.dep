@@ -1,0 +1,1 @@
+("5.3" ("2b6d712b7df3cb15cb672df722f7f23808e23875" . "553d711b42b59284aad883f0712f5fcd71627b05") (collects #"racket" #"main.rkt") #"E:\\.imp\\project\\Backgammon\\Code\\utilities.scm" (collects #"errortrace" #"errortrace-key.rkt") (collects #"racket" #"draw.rkt") (collects #"racket" #"lang" #"reader.rkt") (collects #"wxme" #"read.rkt"))

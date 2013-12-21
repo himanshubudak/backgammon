@@ -1,0 +1,1 @@
+("5.3" ("da7c4ff2410ac327cbed5322514dc25b0a4ce0e3" . "194e6978af2b103b83ec76623ddea37570305030") #"E:\\.imp\\project\\Backgammon\\Code\\proj-v2-gen-moves.scm" (collects #"racket" #"main.rkt") (collects #"errortrace" #"errortrace-key.rkt") (collects #"racket" #"lang" #"reader.rkt") (collects #"wxme" #"read.rkt"))
